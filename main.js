@@ -1,32 +1,83 @@
 // Modules
-const {app, BrowserWindow} = require('electron')
+
+const { app, BrowserWindow, ipcMain } = require('electron')
+const windowStateKeeper = require("electron-window-state")
+const readItem = require("./readItem")
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
 
-// Create a new BrowserWindow when `app` is ready
-function createWindow () {
+// listen for new item request
+ipcMain.on("new-item", (e, itemUrl) => {
+  // get new item and send back to renderer
+  readItem(itemUrl, item => {
+    e.sender.send("new-item-success", item)
+  });
+})
 
-  mainWindow = new BrowserWindow({
-    width: 1000, height: 800,
-    webPreferences: { nodeIntegration: true }
+/*=========================================================================== 
+===========================================================================*/
+
+// Create a new BrowserWindow when `app` is ready
+function createWindow() {
+  let state = windowStateKeeper({
+    defaultWidth: 500,
+    defaultHeight: 650,
   })
 
-  // Load index.html into the new BrowserWindow
-  mainWindow.loadFile('index.html')
+  //-----------------------------------------------------//
+  mainWindow = new BrowserWindow({ // instance of the electron browser window
+    width: state.width,
+    height: state.height,
+    x: state.x,
+    y: state.y,
+    minWidth: 350,
+    maxWidth: 650,
+    minHeight: 300,
+    webPreferences: {
+      nodeIntegration: true,
+      // preload: __dirname + "/preload.js",
+      // contextIsolation: false
+    },
+  })
 
+
+  //-----------------------------------------------------//
+  // Load index.html into the new BrowserWindow
+  mainWindow.loadFile('renderer/main.html')
+  // mainWindow.loadURL('https://www.electronjs.org/')
+
+
+  state.manage(mainWindow)
+
+
+  //-----------------------------------------------------//
   // Open DevTools - Remove for PRODUCTION!
   mainWindow.webContents.openDevTools()
 
+
+
+  //-----------------------------------------------------//
   // Listen for window being closed
-  mainWindow.on('closed',  () => {
+  mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+
+
 }
+/*=========================================================================== 
+===========================================================================*/
+
+
 
 // Electron `app` is ready
-app.on('ready', createWindow)
+app.on('ready', () => {
+  console.log("app is ready");
+  createWindow()
+
+})
 
 // Quit when all windows are closed - (Not macOS - Darwin)
 app.on('window-all-closed', () => {
